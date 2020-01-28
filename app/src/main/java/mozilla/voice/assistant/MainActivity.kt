@@ -17,6 +17,7 @@ import android.speech.SpeechRecognizer
 import android.text.SpannableStringBuilder
 import android.util.Log
 import android.widget.Toast
+import androidx.annotation.VisibleForTesting
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.text.bold
 import androidx.core.text.italic
@@ -24,15 +25,18 @@ import androidx.core.text.scale
 import com.airbnb.lottie.LottieDrawable
 import java.net.URLEncoder
 import kotlinx.android.synthetic.main.activity_main.*
+import mozilla.voice.assistant.intents.AlarmIntentMatcher
 
 class MainActivity : AppCompatActivity() {
     private var suggestionIndex = 0
     private lateinit var suggestions: List<String>
+    private lateinit var matchers: List<IntentMatcher>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         suggestions = resources.getStringArray(R.array.sample_phrases).toList<String>()
+        matchers = listOf(AlarmIntentMatcher())
     }
 
     override fun onStart() {
@@ -42,7 +46,8 @@ class MainActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             requestPermissions(
                 arrayOf(
-                    Manifest.permission.RECORD_AUDIO
+                    Manifest.permission.RECORD_AUDIO,
+                    Manifest.permission.SET_ALARM
                 ),
                 PERMISSIONS_REQUEST_CODE
             )
@@ -62,12 +67,13 @@ class MainActivity : AppCompatActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == PERMISSIONS_REQUEST_CODE) {
-            if (grantResults.size != 1 || grantResults[0] != PackageManager.PERMISSION_GRANTED) {
+            if (grantResults.any { it != PackageManager.PERMISSION_GRANTED }) {
                 Toast.makeText(
                     this,
                     "Permissions denied",
                     Toast.LENGTH_LONG
                 ).show()
+                startSpeechRecognition()
             } else {
                 startSpeechRecognition()
             }
@@ -214,19 +220,29 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleResults(results: List<String>) {
-        results.let {
-            if (it.isNotEmpty()) {
-                feedbackView.text = it[0]
-                Handler().postDelayed({
-                    startActivity(Intent(
-                        Intent.ACTION_VIEW,
-                        Uri.parse("${BASE_URL}${URLEncoder.encode(it[0], ENCODING)}")
-                    ))
-                }, TRANSCRIPT_DISPLAY_TIME)
+        if (results.isNotEmpty()) {
+            val bestMatch = findBestMatch(results)
+            val intent = if (bestMatch != null && bestMatch.score >= SEARCH_SCORE_THRESHOLD) {
+                feedbackView.text = bestMatch.utterance
+                bestMatch.intent
             } else {
-                feedbackView.text = getString(R.string.no_match)
+                feedbackView.text = results[0]
+                Intent(
+                    Intent.ACTION_VIEW,
+                    Uri.parse("${BASE_URL}${URLEncoder.encode(results[0], ENCODING)}"))
             }
+            Handler().postDelayed({ startActivity(intent) }, TRANSCRIPT_DISPLAY_TIME)
+            return
         }
+        feedbackView.text = getString(R.string.no_match)
+    }
+
+    @VisibleForTesting
+    private fun findBestMatch(results: List<String>): IntentMatcherResult? {
+        val lowers = results.map { it.toLowerCase() }
+        val matches: List<IntentMatcherResult> =
+            lowers.map { result -> matchers.map { it.matchTranscript(result) } }.flatten().flatten()
+        return matches.maxBy { it.score }
     }
 
     override fun onPause() {
@@ -251,6 +267,9 @@ class MainActivity : AppCompatActivity() {
         internal const val TRANSCRIPT_DISPLAY_TIME = 1000L // ms before launching browser
         internal const val ADVICE_DELAY = 1250L // ms before suggesting utterances
         internal const val NUM_SUGGESTIONS = 3 // number of suggestions to show at a time
+
+        // If confidence in matched intents in below this, just do a search.
+        internal const val SEARCH_SCORE_THRESHOLD = .7
 
         // Animation frames
         internal const val SOLICIT_MIN = 0
