@@ -4,6 +4,7 @@ import android.provider.AlarmClock
 import mozilla.voice.assistant.IntentMatcherResult
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -27,10 +28,18 @@ class AlarmIntentMatcherTest {
         hour: Int,
         minutes: Int
     ) {
-        val (s, h, m) = getScoreHourMinute(result)
-        assertEquals("Scores differ for ${result.utterance}", score, s, DELTA)
-        assertEquals("Hours differ for ${result.utterance}", hour, h)
-        assertEquals("Minutes differ for ${result.utterance}", minutes, m)
+        assertEquals("Scores differ for: ${result.utterance}", score, result.score, DELTA)
+        matchHourMinute(result, hour, minutes)
+    }
+
+    private fun matchHourMinute(
+        result: IntentMatcherResult,
+        hour: Int,
+        minutes: Int
+    ) {
+        val (_, h, m) = getScoreHourMinute(result)
+        assertEquals("Hours differ for: ${result.utterance}", hour, h)
+        assertEquals("Minutes differ for: ${result.utterance}", minutes, m)
     }
 
     @Test
@@ -67,6 +76,24 @@ class AlarmIntentMatcherTest {
             16,
             30
         )
+    }
+
+
+    @Test
+    fun matchesMidnight() {
+        listOf(
+            "set alarm for 12 a.m.",
+            "set alarm for 24:00",
+            "set alarm for 12 midnight"
+        ).flatMap {
+            val results = matcher.matchTranscript(it)
+            if (results.isEmpty()) {
+                fail("No match found for $it")
+            }
+            results
+        }.forEach {
+            matchHourMinute(it, 24, 0)
+        }
     }
 
     @Test
