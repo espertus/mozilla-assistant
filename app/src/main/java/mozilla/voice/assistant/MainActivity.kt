@@ -210,7 +210,7 @@ class MainActivity : AppCompatActivity() {
         statusView.text = ""
         if (requestCode == SPEECH_RECOGNITION_REQUEST) {
             if (resultCode == RESULT_OK && data is Intent) {
-                data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?. let {
+                data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.let {
                     handleResults(it)
                 }
             } else {
@@ -229,7 +229,8 @@ class MainActivity : AppCompatActivity() {
                 feedbackView.text = results[0]
                 Intent(
                     Intent.ACTION_VIEW,
-                    Uri.parse("${BASE_URL}${URLEncoder.encode(results[0], ENCODING)}"))
+                    Uri.parse("${BASE_URL}${URLEncoder.encode(results[0], ENCODING)}")
+                )
             }
             Handler().postDelayed({ startActivity(intent) }, TRANSCRIPT_DISPLAY_TIME)
             return
@@ -238,12 +239,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     @VisibleForTesting
-    private fun findBestMatch(results: List<String>): IntentMatcherResult? {
-        val lowers = results.map { it.toLowerCase() }
-        val matches: List<IntentMatcherResult> =
-            lowers.map { result -> matchers.map { it.matchTranscript(result) } }.flatten().flatten()
-        return matches.maxBy { it.score }
-    }
+    private fun findBestMatch(results: List<String>): IntentMatcherResult? =
+        results.map { it.toLowerCase() }
+            .flatMap { result ->
+                matchers.flatMap {
+                    it.matchTranscript(result)
+                }
+            }
+            .maxBy { it.score }
 
     override fun onPause() {
         super.onPause()
