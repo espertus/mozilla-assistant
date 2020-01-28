@@ -52,12 +52,12 @@ class AlarmIntentMatcher : IntentMatcher {
         private const val MAX_MINUTE = 59
         private const val HOURS_PER_PERIOD = 12 // AM/PM
         @VisibleForTesting
-        const val CONFIDENCE_WITH_HM_ = 1.0 // adding period doesn't increase confidence
+        const val CONFIDENCE_WITH_HM_ = 1.0 // hours and minutes, with or without period
         @VisibleForTesting
-        const val CONFIDENCE_WITH_HP = .95
+        const val CONFIDENCE_WITH_HP = .95  // hours and period, no minute
         @VisibleForTesting
-        const val CONFIDENCE_WITH_H = .9
+        const val CONFIDENCE_WITH_H = .9    // hours, no minute or period
 
-        val regex = Regex("""set alarm for (\d+)[ :](\d+)?(\s?[ap].m.)?""")
+        val regex = Regex("""set alarm for (\d+)[ :](\d+)?(\s?[ap].m.)?$""")
     }
 }
