@@ -2,6 +2,7 @@ package mozilla.voice.assistant.intents
 
 import android.content.Intent
 import android.provider.AlarmClock
+import androidx.annotation.VisibleForTesting
 import java.lang.NumberFormatException
 import mozilla.voice.assistant.IntentMatcher
 import mozilla.voice.assistant.IntentMatcherResult
@@ -26,9 +27,11 @@ class AlarmIntentMatcher : IntentMatcher {
                     intent.putExtra(AlarmClock.EXTRA_MINUTES, m)
                     val confidence =
                         if (period.isEmpty() && minutes.isEmpty()) {
-                            CONFIDENCE_WITH_HOUR_ONLY
+                            CONFIDENCE_WITH_H
+                        } else if (minutes.isEmpty()) {
+                            CONFIDENCE_WITH_HP
                         } else {
-                            CONFIDENCE_WITH_ALL_FIELDS
+                            CONFIDENCE_WITH_HM_
                         }
                     return listOf(
                         IntentMatcherResult(confidence, "set alarm", transcript, intent)
@@ -48,8 +51,12 @@ class AlarmIntentMatcher : IntentMatcher {
         private const val MIN_MINUTE = 0
         private const val MAX_MINUTE = 59
         private const val HOURS_PER_PERIOD = 12 // AM/PM
-        private const val CONFIDENCE_WITH_ALL_FIELDS = 1.0
-        private const val CONFIDENCE_WITH_HOUR_ONLY = .9
+        @VisibleForTesting
+        const val CONFIDENCE_WITH_HM_ = 1.0 // adding period doesn't increase confidence
+        @VisibleForTesting
+        const val CONFIDENCE_WITH_HP = .95
+        @VisibleForTesting
+        const val CONFIDENCE_WITH_H = .9
 
         val regex = Regex("""set alarm for (\d+)[ :](\d+)?(\s?[ap].m.)?""")
     }
