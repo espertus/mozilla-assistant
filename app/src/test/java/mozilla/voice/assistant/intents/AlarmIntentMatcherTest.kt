@@ -3,7 +3,6 @@ package mozilla.voice.assistant.intents
 import android.provider.AlarmClock
 import mozilla.voice.assistant.IntentMatcherResult
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -78,7 +77,6 @@ class AlarmIntentMatcherTest {
         )
     }
 
-
     @Test
     fun matchesMidnight() {
         listOf(
@@ -92,7 +90,24 @@ class AlarmIntentMatcherTest {
             }
             results
         }.forEach {
-            matchHourMinute(it, 24, 0)
+            matchHourMinute(it, 0, 0)
+        }
+    }
+
+    @Test
+    fun matchesNoon() {
+        listOf(
+            "set alarm for 12 p.m.",
+            "set alarm for 12:00",
+            "set alarm for 12 noon"
+        ).flatMap {
+            val results = matcher.matchTranscript(it)
+            if (results.isEmpty()) {
+                fail("No match found for $it")
+            }
+            results
+        }.forEach {
+            matchHourMinute(it, 12, 0)
         }
     }
 
@@ -102,8 +117,9 @@ class AlarmIntentMatcherTest {
             "set alarm for tomorrow",
             "set alarm never",
             "set alarm for 27:15",
-            "set alarm for 12 noon",
-            "set alarm for 2:30 p.m. and then something"
+            "set alarm for 2:30 p.m. and then something",
+            "set alarm for 13 midnight",
+            "set alarm for 11 noon"
         ).forEach {
             assertEquals("Unexpectedly matched $it", 0, matcher.matchTranscript(it).size)
         }
